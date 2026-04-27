@@ -8,35 +8,48 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 32 45% 97%;
+    --foreground: 338 24% 13%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 30 60% 99%;
+    --card-foreground: 338 24% 13%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 30 60% 99%;
+    --popover-foreground: 338 24% 13%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 338 67% 42%;
+    --primary-foreground: 30 60% 99%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 18 82% 90%;
+    --secondary-foreground: 338 38% 20%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 28 38% 91%;
+    --muted-foreground: 338 12% 42%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 168 34% 74%;
+    --accent-foreground: 172 42% 14%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 23 37% 84%;
+    --input: 23 37% 84%;
+    --ring: 338 67% 42%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+
+    --surface: 31 67% 96%;
+    --surface-elevated: 30 68% 99%;
+    --rose-soft: 349 76% 91%;
+    --plum: 333 43% 23%;
+    --peach: 18 88% 78%;
+    --sage: 168 34% 74%;
+    --gold: 39 76% 57%;
+    --gradient-hero: linear-gradient(135deg, hsl(var(--surface-elevated)) 0%, hsl(var(--rose-soft)) 52%, hsl(var(--secondary)) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--plum)));
+    --gradient-scan: linear-gradient(90deg, transparent, hsl(var(--accent) / 0.75), transparent);
+    --shadow-soft: 0 24px 70px -32px hsl(var(--plum) / 0.34);
+    --shadow-glow: 0 18px 52px -28px hsl(var(--primary) / 0.65);
 
     --sidebar-background: 0 0% 98%;
 
@@ -101,5 +114,20 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0;
   }
+
+  h1, h2, h3 {
+    font-family: "Playfair Display", Georgia, serif;
+    letter-spacing: 0;
+  }
+}
+
+@layer utilities {
+  .bg-hero-gradient { background: var(--gradient-hero); }
+  .bg-primary-gradient { background: var(--gradient-primary); }
+  .bg-scan-gradient { background: var(--gradient-scan); }
+  .shadow-soft { box-shadow: var(--shadow-soft); }
+  .shadow-glow { box-shadow: var(--shadow-glow); }
 }
