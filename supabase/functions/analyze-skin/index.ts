@@ -1,5 +1,18 @@
 Deno.serve(async (req) => {
 
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"
+      }
+    });
+  }
+
+  console.log("Request received");
+  console.log("OpenRouter key exists:", !!Deno.env.get("OPENROUTER_API_KEY"));
+
   const { imageBase64, mimeType } = await req.json();
 
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
