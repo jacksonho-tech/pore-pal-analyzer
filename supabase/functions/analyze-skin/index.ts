@@ -1,17 +1,21 @@
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"
+};
+
 Deno.serve(async (req) => {
 
   if (req.method === "OPTIONS") {
     return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"
-      }
+      headers: corsHeaders
     });
   }
 
   console.log("Request received");
   console.log("OpenRouter key exists:", !!Deno.env.get("OPENROUTER_API_KEY"));
+
+  try {
 
   const { imageBase64, mimeType } = await req.json();
 
@@ -63,7 +67,23 @@ Deno.serve(async (req) => {
 
   const data = await response.json();
 
-  const text = data.choices[0].message.content.trim();
+  if (!response.ok) {
+    console.error("OpenRouter error", response.status, JSON.stringify(data));
+    return new Response(JSON.stringify({ error: "OpenRouter request failed" }), {
+      status: 502,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
+
+  const text = data.choices?.[0]?.message?.content?.trim();
+
+  if (!text) {
+    console.error("OpenRouter response missing content", JSON.stringify(data));
+    return new Response(JSON.stringify({ error: "OpenRouter response missing content" }), {
+      status: 502,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
 
   const clean = text.replace(/```json|```/g, "").trim();
 
@@ -73,12 +93,20 @@ Deno.serve(async (req) => {
 
     headers: { 
 
-      "Content-Type": "application/json",
+      ...corsHeaders,
 
-      "Access-Control-Allow-Origin": "*"
+      "Content-Type": "application/json"
 
     }
 
   });
+
+  } catch (error) {
+    console.error("analyze-skin error", error);
+    return new Response(JSON.stringify({ error: "Analysis failed" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
 
 });
