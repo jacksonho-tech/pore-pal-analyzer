@@ -19,13 +19,21 @@ Deno.serve(async (req) => {
 
   const { imageBase64, mimeType } = await req.json();
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const apiKey = Deno.env.get("OPENROUTER_API_KEY");
+
+  console.log("API key length:", apiKey?.length);
+
+  const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
 
     method: "POST",
 
     headers: {
 
-      "Authorization": `Bearer ${Deno.env.get("OPENROUTER_API_KEY")}`,
+      "Authorization": `Bearer ${apiKey}`,
+
+      "HTTP-Referer": "https://radiantskinai.lovable.app",
+
+      "X-Title": "Radiant Skin AI",
 
       "Content-Type": "application/json"
 
@@ -33,7 +41,7 @@ Deno.serve(async (req) => {
 
     body: JSON.stringify({
 
-      model: "meta-llama/llama-3.2-11b-vision-instruct:free",
+      model: "qwen/qwen2.5-vl-32b-instruct:free",
 
       messages: [{
 
@@ -45,7 +53,11 @@ Deno.serve(async (req) => {
 
             type: "image_url",
 
-            image_url: { url: `data:${mimeType};base64,${imageBase64}` }
+            image_url: { 
+
+              url: `data:${mimeType};base64,${imageBase64}` 
+
+            }
 
           },
 
@@ -53,7 +65,7 @@ Deno.serve(async (req) => {
 
             type: "text",
 
-            text: "Analyze this facial skin photo. Return ONLY valid JSON, no markdown, no explanation: {\"skin_type\":\"dry|oily|combination|normal|sensitive\",\"concerns\":{\"acne\":0.0,\"dryness\":0.0,\"wrinkles\":0.0,\"pigmentation\":0.0,\"pores\":0.0}} All values must be floats between 0.0 and 1.0."
+            text: "Analyze this facial skin photo. Return ONLY valid JSON: {\"skin_type\":\"dry|oily|combination|normal|sensitive\",\"concerns\":{\"acne\":0.0,\"dryness\":0.0,\"wrinkles\":0.0,\"pigmentation\":0.0,\"pores\":0.0}}"
 
           }
 
@@ -65,25 +77,21 @@ Deno.serve(async (req) => {
 
   });
 
-  const data = await response.json();
+  console.log("OpenRouter status:", openRouterResponse.status);
 
-  if (!response.ok) {
-    console.error("OpenRouter error", response.status, JSON.stringify(data));
-    return new Response(JSON.stringify({ error: "OpenRouter request failed" }), {
-      status: 502,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+  const rawText = await openRouterResponse.text();
+
+  console.log("OpenRouter response:", rawText);
+
+  if (!openRouterResponse.ok) {
+
+    throw new Error(`OpenRouter error: ${rawText}`);
+
   }
 
-  const text = data.choices?.[0]?.message?.content?.trim();
+  const data = JSON.parse(rawText);
 
-  if (!text) {
-    console.error("OpenRouter response missing content", JSON.stringify(data));
-    return new Response(JSON.stringify({ error: "OpenRouter response missing content" }), {
-      status: 502,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
-  }
+  const text = data.choices[0].message.content.trim();
 
   const clean = text.replace(/```json|```/g, "").trim();
 
