@@ -2,6 +2,7 @@ import { ChangeEvent, useMemo, useRef, useState } from "react";
 import { Camera, CheckCircle2, Droplets, ImageUp, Loader2, ScanFace, ShoppingBag, Sparkles, Sun, Wand2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 type SkinType = "Oily" | "Dry" | "Combination" | "Sensitive" | "Mature" | "Balanced";
 type Concern = "acne" | "dryness" | "wrinkles" | "pores" | "pigmentation" | "redness" | "dullness";
@@ -15,6 +16,17 @@ type Product = {
   concerns: string;
   ingredients: string;
   price: string;
+};
+
+type AiSkinAnalysis = {
+  skin_type: "dry" | "oily" | "combination" | "normal" | "sensitive";
+  concerns: {
+    acne: number;
+    dryness: number;
+    wrinkles: number;
+    pigmentation: number;
+    pores: number;
+  };
 };
 
 const products: Product[] = [
