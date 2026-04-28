@@ -147,13 +147,35 @@ const Index = () => {
     };
   }, [age, aiAnalysis, photo, selectedConcerns, sensitive]);
 
-  const runAnalysis = () => {
+  const fileToBase64 = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const runAnalysis = async () => {
     setIsAnalyzing(true);
     setShowResults(false);
-    window.setTimeout(() => {
+    setAnalysisError(null);
+
+    try {
+      if (photoFile) {
+        const imageBase64 = await fileToBase64(photoFile);
+        const { data, error } = await supabase.functions.invoke<AiSkinAnalysis>("analyze-skin", {
+          body: { imageBase64, mimeType: photoFile.type },
+        });
+
+        if (error) throw error;
+        if (data) setAiAnalysis(data);
+      }
+    } catch (error) {
+      setAnalysisError(error instanceof Error ? error.message : "AI analysis unavailable");
+    } finally {
       setIsAnalyzing(false);
       setShowResults(true);
-    }, 1300);
+    }
   };
 
   return (
