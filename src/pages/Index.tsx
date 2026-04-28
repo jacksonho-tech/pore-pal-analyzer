@@ -2,6 +2,7 @@ import { ChangeEvent, useMemo, useRef, useState } from "react";
 import { Camera, CheckCircle2, Droplets, ImageUp, Loader2, ScanFace, ShoppingBag, Sparkles, Sun, Wand2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 type SkinType = "Oily" | "Dry" | "Combination" | "Sensitive" | "Mature" | "Balanced";
 type Concern = "acne" | "dryness" | "wrinkles" | "pores" | "pigmentation" | "redness" | "dullness";
@@ -15,6 +16,17 @@ type Product = {
   concerns: string;
   ingredients: string;
   price: string;
+};
+
+type AiSkinAnalysis = {
+  skin_type: "dry" | "oily" | "combination" | "normal" | "sensitive";
+  concerns: {
+    acne: number;
+    dryness: number;
+    wrinkles: number;
+    pigmentation: number;
+    pores: number;
+  };
 };
 
 const products: Product[] = [
@@ -56,16 +68,22 @@ const Index = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [age, setAge] = useState("28");
   const [sensitive, setSensitive] = useState(false);
   const [selectedConcerns, setSelectedConcerns] = useState<Concern[]>(["pores", "dullness"]);
+  const [aiAnalysis, setAiAnalysis] = useState<AiSkinAnalysis | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showResults, setShowResults] = useState(false);
 
   const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    setPhotoFile(file);
     setPhoto(URL.createObjectURL(file));
+    setAiAnalysis(null);
+    setAnalysisError(null);
     setShowResults(false);
   };
 
@@ -77,9 +95,22 @@ const Index = () => {
 
   const analysis = useMemo(() => {
     const userAge = Number(age) || 28;
-    const concernSet = new Set(selectedConcerns);
+    const aiConcerns = aiAnalysis
+      ? (Object.entries(aiAnalysis.concerns).filter(([, value]) => value >= 0.35).map(([key]) => key) as Concern[])
+      : [];
+    const activeConcerns = Array.from(new Set([...selectedConcerns, ...aiConcerns]));
+    const concernSet = new Set(activeConcerns);
     let skinType: SkinType = "Balanced";
-    if (sensitive || concernSet.has("redness")) skinType = "Sensitive";
+    if (aiAnalysis) {
+      const aiTypeMap: Record<AiSkinAnalysis["skin_type"], SkinType> = {
+        dry: "Dry",
+        oily: "Oily",
+        combination: "Combination",
+        normal: "Balanced",
+        sensitive: "Sensitive",
+      };
+      skinType = aiTypeMap[aiAnalysis.skin_type] ?? "Balanced";
+    } else if (sensitive || concernSet.has("redness")) skinType = "Sensitive";
     else if (concernSet.has("dryness")) skinType = "Dry";
     else if (concernSet.has("acne") || concernSet.has("pores")) skinType = "Oily";
     else if (userAge >= 42 || concernSet.has("wrinkles")) skinType = "Mature";
@@ -89,7 +120,7 @@ const Index = () => {
       .map((product) => {
         const text = `${product.target} ${product.concerns} ${product.ingredients} ${product.category}`.toLowerCase();
         let score = product.target.toLowerCase().includes(skinType.toLowerCase()) || product.target.includes("All") ? 2 : 0;
-        selectedConcerns.forEach((concern) => {
+        activeConcerns.forEach((concern) => {
           const aliases: Record<Concern, string[]> = {
             acne: ["acne", "pimples", "inflammation", "blackheads"],
             dryness: ["dry", "dehydration", "flakiness", "barrier", "tightness"],
@@ -110,19 +141,41 @@ const Index = () => {
 
     return {
       skinType,
-      confidence: photo ? 91 : 78,
-      concerns: selectedConcerns.length ? selectedConcerns : (["dullness"] as Concern[]),
+      confidence: aiAnalysis ? 94 : photo ? 91 : 78,
+      concerns: activeConcerns.length ? activeConcerns : (["dullness"] as Concern[]),
       recommended,
     };
-  }, [age, photo, selectedConcerns, sensitive]);
+  }, [age, aiAnalysis, photo, selectedConcerns, sensitive]);
 
-  const runAnalysis = () => {
+  const fileToBase64 = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const runAnalysis = async () => {
     setIsAnalyzing(true);
     setShowResults(false);
-    window.setTimeout(() => {
+    setAnalysisError(null);
+
+    try {
+      if (photoFile) {
+        const imageBase64 = await fileToBase64(photoFile);
+        const { data, error } = await supabase.functions.invoke<AiSkinAnalysis>("analyze-skin", {
+          body: { imageBase64, mimeType: photoFile.type },
+        });
+
+        if (error) throw error;
+        if (data) setAiAnalysis(data);
+      }
+    } catch (error) {
+      setAnalysisError(error instanceof Error ? error.message : "AI analysis unavailable");
+    } finally {
       setIsAnalyzing(false);
       setShowResults(true);
-    }, 1300);
+    }
   };
 
   return (
@@ -253,13 +306,18 @@ const Index = () => {
                   <div className="rounded-xl bg-secondary p-4">
                     <p className="text-sm font-semibold text-muted-foreground">Detected skin type</p>
                     <p className="mt-1 text-4xl font-semibold text-beauty-plum">{analysis.skinType}</p>
-                    <p className="mt-2 text-sm text-muted-foreground">{analysis.confidence}% prototype confidence from photo and questionnaire inputs.</p>
+                    <p className="mt-2 text-sm text-muted-foreground">{analysis.confidence}% confidence from {aiAnalysis ? "Gemini image analysis" : "prototype questionnaire inputs"}.</p>
+                    {analysisError && <p className="mt-2 text-xs font-semibold text-destructive">{analysisError}</p>}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {analysis.concerns.slice(0, 4).map((concern) => (
                       <div key={concern} className="rounded-xl border border-border bg-background p-3">
                         <p className="text-sm font-semibold text-beauty-plum">{concernLabels[concern]}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">Matched to active-support SKUs.</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {aiAnalysis && concern in aiAnalysis.concerns
+                            ? `${Math.round(aiAnalysis.concerns[concern as keyof AiSkinAnalysis["concerns"]] * 100)}% image signal`
+                            : "Matched to active-support SKUs."}
+                        </p>
                       </div>
                     ))}
                   </div>
