@@ -68,16 +68,22 @@ const Index = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [age, setAge] = useState("28");
   const [sensitive, setSensitive] = useState(false);
   const [selectedConcerns, setSelectedConcerns] = useState<Concern[]>(["pores", "dullness"]);
+  const [aiAnalysis, setAiAnalysis] = useState<AiSkinAnalysis | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showResults, setShowResults] = useState(false);
 
   const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    setPhotoFile(file);
     setPhoto(URL.createObjectURL(file));
+    setAiAnalysis(null);
+    setAnalysisError(null);
     setShowResults(false);
   };
 
@@ -89,9 +95,22 @@ const Index = () => {
 
   const analysis = useMemo(() => {
     const userAge = Number(age) || 28;
-    const concernSet = new Set(selectedConcerns);
+    const aiConcerns = aiAnalysis
+      ? (Object.entries(aiAnalysis.concerns).filter(([, value]) => value >= 0.35).map(([key]) => key) as Concern[])
+      : [];
+    const activeConcerns = Array.from(new Set([...selectedConcerns, ...aiConcerns]));
+    const concernSet = new Set(activeConcerns);
     let skinType: SkinType = "Balanced";
-    if (sensitive || concernSet.has("redness")) skinType = "Sensitive";
+    if (aiAnalysis) {
+      const aiTypeMap: Record<AiSkinAnalysis["skin_type"], SkinType> = {
+        dry: "Dry",
+        oily: "Oily",
+        combination: "Combination",
+        normal: "Balanced",
+        sensitive: "Sensitive",
+      };
+      skinType = aiTypeMap[aiAnalysis.skin_type] ?? "Balanced";
+    } else if (sensitive || concernSet.has("redness")) skinType = "Sensitive";
     else if (concernSet.has("dryness")) skinType = "Dry";
     else if (concernSet.has("acne") || concernSet.has("pores")) skinType = "Oily";
     else if (userAge >= 42 || concernSet.has("wrinkles")) skinType = "Mature";
@@ -101,7 +120,7 @@ const Index = () => {
       .map((product) => {
         const text = `${product.target} ${product.concerns} ${product.ingredients} ${product.category}`.toLowerCase();
         let score = product.target.toLowerCase().includes(skinType.toLowerCase()) || product.target.includes("All") ? 2 : 0;
-        selectedConcerns.forEach((concern) => {
+        activeConcerns.forEach((concern) => {
           const aliases: Record<Concern, string[]> = {
             acne: ["acne", "pimples", "inflammation", "blackheads"],
             dryness: ["dry", "dehydration", "flakiness", "barrier", "tightness"],
@@ -122,11 +141,11 @@ const Index = () => {
 
     return {
       skinType,
-      confidence: photo ? 91 : 78,
-      concerns: selectedConcerns.length ? selectedConcerns : (["dullness"] as Concern[]),
+      confidence: aiAnalysis ? 94 : photo ? 91 : 78,
+      concerns: activeConcerns.length ? activeConcerns : (["dullness"] as Concern[]),
       recommended,
     };
-  }, [age, photo, selectedConcerns, sensitive]);
+  }, [age, aiAnalysis, photo, selectedConcerns, sensitive]);
 
   const runAnalysis = () => {
     setIsAnalyzing(true);
