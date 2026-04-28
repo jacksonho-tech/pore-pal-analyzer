@@ -306,13 +306,18 @@ const Index = () => {
                   <div className="rounded-xl bg-secondary p-4">
                     <p className="text-sm font-semibold text-muted-foreground">Detected skin type</p>
                     <p className="mt-1 text-4xl font-semibold text-beauty-plum">{analysis.skinType}</p>
-                    <p className="mt-2 text-sm text-muted-foreground">{analysis.confidence}% prototype confidence from photo and questionnaire inputs.</p>
+                    <p className="mt-2 text-sm text-muted-foreground">{analysis.confidence}% confidence from {aiAnalysis ? "Gemini image analysis" : "prototype questionnaire inputs"}.</p>
+                    {analysisError && <p className="mt-2 text-xs font-semibold text-destructive">{analysisError}</p>}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {analysis.concerns.slice(0, 4).map((concern) => (
                       <div key={concern} className="rounded-xl border border-border bg-background p-3">
                         <p className="text-sm font-semibold text-beauty-plum">{concernLabels[concern]}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">Matched to active-support SKUs.</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {aiAnalysis && concern in aiAnalysis.concerns
+                            ? `${Math.round(aiAnalysis.concerns[concern as keyof AiSkinAnalysis["concerns"]] * 100)}% image signal`
+                            : "Matched to active-support SKUs."}
+                        </p>
                       </div>
                     ))}
                   </div>
