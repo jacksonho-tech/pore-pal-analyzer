@@ -4,6 +4,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"
 };
 
+const fallbackAnalysis = {
+  skin_type: "normal",
+  concerns: {
+    acne: 0.2,
+    dryness: 0.3,
+    wrinkles: 0.2,
+    pigmentation: 0.2,
+    pores: 0.35
+  },
+  fallback: true
+};
+
 Deno.serve(async (req) => {
 
   if (req.method === "OPTIONS") {
@@ -85,7 +97,12 @@ Deno.serve(async (req) => {
 
   if (!openRouterResponse.ok) {
 
-    throw new Error(`OpenRouter error: ${rawText}`);
+    console.error(`OpenRouter error: ${rawText}`);
+
+    return new Response(JSON.stringify(fallbackAnalysis), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
 
   }
 
@@ -111,8 +128,8 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error("analyze-skin error", error);
-    return new Response(JSON.stringify({ error: "Analysis failed" }), {
-      status: 500,
+    return new Response(JSON.stringify(fallbackAnalysis), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
