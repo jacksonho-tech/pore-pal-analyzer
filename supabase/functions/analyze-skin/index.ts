@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
 
     body: JSON.stringify({
 
-      model: "nvidia/llama-3.1-nemotron-nano-8b-v1:free",
+      model: "openrouter/auto",
 
       messages: [{
 
