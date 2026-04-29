@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
 
     body: JSON.stringify({
 
-      model: "meta-llama/llama-3.2-11b-vision-instruct:free",
+      model: "nvidia/llama-3.1-nemotron-nano-8b-v1:free",
 
       messages: [{
 
