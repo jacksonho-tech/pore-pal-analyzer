@@ -18,6 +18,11 @@ type Product = {
   price: string;
 };
 
+type Recommendation = Product & {
+  score: number;
+  reasons: string[];
+};
+
 type AiSkinAnalysis = {
   skin_type: "dry" | "oily" | "combination" | "normal" | "sensitive";
   concerns: {
@@ -116,10 +121,14 @@ const Index = () => {
     else if (userAge >= 42 || concernSet.has("wrinkles")) skinType = "Mature";
     else if (concernSet.has("pigmentation") || concernSet.has("dullness")) skinType = "Combination";
 
-    const recommended = products
+    const recommended: Recommendation[] = products
       .map((product) => {
         const text = `${product.target} ${product.concerns} ${product.ingredients} ${product.category}`.toLowerCase();
+        const reasons: string[] = [];
         let score = product.target.toLowerCase().includes(skinType.toLowerCase()) || product.target.includes("All") ? 2 : 0;
+        if (score > 0) {
+          reasons.push(product.target.includes("All") ? "Safe baseline SKU for every skin type" : `Mapped to detected ${skinType.toLowerCase()} skin`);
+        }
         activeConcerns.forEach((concern) => {
           const aliases: Record<Concern, string[]> = {
             acne: ["acne", "pimples", "inflammation", "blackheads"],
@@ -130,10 +139,16 @@ const Index = () => {
             redness: ["sensitive", "soothing", "centella", "barrier"],
             dullness: ["dull", "glow", "texture", "vitamin c"],
           };
-          if (aliases[concern].some((alias) => text.includes(alias))) score += 3;
+          if (aliases[concern].some((alias) => text.includes(alias))) {
+            score += 3;
+            reasons.push(`Targets ${concernLabels[concern].toLowerCase()}`);
+          }
         });
-        if (product.category === "Sunscreen") score += 2;
-        return { ...product, score };
+        if (product.category === "Sunscreen") {
+          score += 2;
+          reasons.push("Daily SPF support for visible tone and photoaging prevention");
+        }
+        return { ...product, score, reasons: Array.from(new Set(reasons)) };
       })
       .filter((product) => product.score > 1)
       .sort((a, b) => b.score - a.score || a.no - b.no)
@@ -340,6 +355,14 @@ const Index = () => {
                         </div>
                         <p className="mt-3 text-sm leading-6 text-muted-foreground">{product.concerns}</p>
                         <p className="mt-2 text-sm font-semibold text-beauty-plum">{product.ingredients}</p>
+                        <div className="mt-3 space-y-1 rounded-lg bg-secondary p-3">
+                          <p className="text-xs font-bold uppercase text-primary">Why this SKU</p>
+                          <ul className="space-y-1 text-xs leading-5 text-muted-foreground">
+                            {product.reasons.slice(0, 3).map((reason) => (
+                              <li key={reason}>• {reason}</li>
+                            ))}
+                          </ul>
+                        </div>
                         <Button variant="link" className="mt-3 h-auto p-0 text-primary">
                           <ShoppingBag className="size-4" /> Shop now
                         </Button>
