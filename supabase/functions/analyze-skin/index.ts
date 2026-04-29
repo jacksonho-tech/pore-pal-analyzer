@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
 
     body: JSON.stringify({
 
-      model: "qwen/qwen2.5-vl-32b-instruct:free",
+      model: "meta-llama/llama-3.2-11b-vision-instruct:free",
 
       messages: [{
 
