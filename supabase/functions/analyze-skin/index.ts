@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
 
     body: JSON.stringify({
 
-      model: "openrouter/auto",
+      "model": "openrouter/auto",
 
       messages: [{
 
